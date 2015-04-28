@@ -84,9 +84,6 @@ function loadChopperCollada(colladaObject) {
 	//pretty stupid
 	chopper.children[0].material.side = THREE.DoubleSide;
 	chopper.children[1].children[0].material.side = THREE.DoubleSide;
-	chopper.children[2].children[0].material.side = THREE.DoubleSide;
-	chopper.children[2].children[1].children[0].material.side = THREE.DoubleSide;
-	chopper.children[2].children[2].children[0].material.side = THREE.DoubleSide;
 	
 	//chopper.children[2].children[1].children[0].material.side = THREE.DoubleSide;
 	console.log(chopper.children);
@@ -94,7 +91,7 @@ function loadChopperCollada(colladaObject) {
 	//Set the chopper scale to 0.8 in all axes
 	chopper.scale.set(0.8, 0.8, 0.8);
 	//Rotate the chopper 90 degrees around the Y axis, so that it is sideways
-	chopper.rotation.set(0, toRad(-45), 0);
+	chopper.rotation.set(0, toRad(45), 0);
 	chopper.updateMatrixWorld();
 	
 	//Add the chopperCollada to the scene
@@ -105,7 +102,7 @@ function loadChopperCollada(colladaObject) {
 	
 	camera.lookAt(chopper.position);
 	
-	generateGrid(chopper, bboxHelper.box, 0.1);
+	generateParticles(chopper.children[1].children[0], bboxHelper.box, 0.7);
 	
 	//You may want to use this to see what data Collada can give us:
 	//console.log(colladaObject);
@@ -115,45 +112,8 @@ function loadChopperCollada(colladaObject) {
 	}
 }
 
-//calculates intersections with rays cast from the left side (a yz plane) of the box
-function calculateIntersections(mesh, box, cellSize) {
-	var raycaster = new THREE.Raycaster();
-	
-	//direction is the x axis
-	var direction  = new THREE.Vector3(1, 0, 0);
-	var origin = box.min.clone();
-	raycaster.near = 0;
-	raycaster.far = box.size().x;
-	
-	intersections = [];
-	for (; origin.y < box.max.y; origin.y += cellSize) {
-		origin.z = box.min.z;
-		var zIntersections = [];
-		var any = false;
-		for (; origin.z < box.max.z; origin.z += cellSize) {
-			raycaster.set(origin, direction);
-			var inters = raycaster.intersectObject(mesh, true);
-			if (inters.length > 0) {
-				any = true;
-				zIntersections.push(inters);
-			}
-			else { zIntersections.push([]); }
-		}
-		if (any) { intersections.push(zIntersections); }
-		else { intersections.push([]); }
-		
-	}
-	return intersections;
-}
-
-function generateGrid(mesh, box, cellSize) {
-	var DEBUG = true;
-	
+function drawDebugShit(yzIntersects, box, cellSize) {
 	var boxSize = box.size();
-	
-	var yzIntersects = calculateIntersections(mesh, box, cellSize);
-	
-	if (DEBUG) {
 	var grid = new THREE.Object3D();
 	grid.position = box.min;
 	
@@ -183,23 +143,89 @@ function generateGrid(mesh, box, cellSize) {
 		drawPos.y += cellSize;
 	}
 	scene.add(grid);
+}
+
+//calculates intersections with rays cast from the left side (a yz plane) of the box
+function calculateIntersections(mesh, box, cellSize) {
+	var raycaster = new THREE.Raycaster();
+	
+	//direction is the x axis
+	var direction  = new THREE.Vector3(1, 0, 0);
+	var origin = box.min.clone();
+	raycaster.near = 0;
+	raycaster.far = box.size().x;
+	
+	intersections = [];
+	for (; origin.y < box.max.y; origin.y += cellSize) {
+		origin.z = box.min.z;
+		var zIntersections = [];
+		var any = false;
+		for (; origin.z < box.max.z; origin.z += cellSize) {
+			raycaster.set(origin, direction);
+			var inters = raycaster.intersectObject(mesh, false);
+			if (inters.length > 0) {
+				any = true;
+				zIntersections.push(inters);
+			}
+			else { zIntersections.push([]); }
+		}
+		if (any) { intersections.push(zIntersections); }
+		else { intersections.push([]); }
+		
 	}
-
-	
-	var direction = new THREE.Vector3(0, 0, -1);
-	direction.applyAxisAngle(new THREE.Vector3(1, 0, 0), camera.rotation.x);
-	
-	//direction.applyAxisAngle(new THREE.Vector3(0,1,0), chopper.rotation.y);
-	direction.normalize()
-	
-	var castpos = camera.position.clone();
-	castpos.add(new THREE.Vector3(0, 1, 0));
-	
+	return intersections;
 }
 
-function drawGrid(box) {
+function generateParticles(mesh, box, cellSize) {
 	
+	
+	var boxSize = box.size();
+	
+	var yzIntersects = calculateIntersections(mesh, box, cellSize);
+	
+	
+	var boxSize = box.size();
+	var grid = new THREE.Object3D();
+	grid.position = box.min;
+	
+	drawPos = box.min.clone();
+	
+	gridMaterial = new THREE.MeshBasicMaterial( {wireframe: true, color: 0x00ff00} );
+	
+	for (var y = 0; y < boxSize.y / cellSize; y++) {
+		if (yzIntersects[y] && yzIntersects[y].length > 0)
+		{
+			drawPos.z = box.min.z;
+			for (var z = 0; z < boxSize.z / cellSize; z++)
+			{
+				if (yzIntersects[y][z].length > 0)
+				{
+					drawPos.x = box.min.x;
+					var intersectionCount = 0;
+					for (x = 0; x < boxSize.x / cellSize; x++) {
+						if (intersectionCount < yzIntersects[y][z].length && 
+							x * cellSize >= yzIntersects[y][z][intersectionCount].distance)
+						{
+							intersectionCount++;		
+						}
+						if (intersectionCount % 2 == 1) {
+							var cell = new THREE.Mesh(new THREE.SphereGeometry(cellSize), gridMaterial);
+								cell.position.set(drawPos.x, drawPos.y, drawPos.z);
+							grid.add(cell);
+							}
+							drawPos.x += cellSize;
+						}
+				}
+				drawPos.z += cellSize;
+			}
+		}
+		drawPos.y += cellSize;
+	}
+	scene.add(grid);
+
+	//drawDebugShit(yzIntersects, box, cellSize);
 }
+
 
 /**
  * This function loads the floor texture.
