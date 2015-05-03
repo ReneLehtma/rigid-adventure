@@ -85,14 +85,11 @@ function loadChopperCollada(colladaObject) {
 	chopper.children[0].material.side = THREE.DoubleSide;
 	chopper.children[1].children[0].material.side = THREE.DoubleSide;
 	
-	//chopper.children[2].children[1].children[0].material.side = THREE.DoubleSide;
-	console.log(chopper.children);
 	chopper.position.set(0, -10, 20);
 	//Set the chopper scale to 0.8 in all axes
 	chopper.scale.set(0.8, 0.8, 0.8);
 	//Rotate the chopper 90 degrees around the Y axis, so that it is sideways
-	chopper.rotation.set(0, toRad(45), 0);
-	chopper.updateMatrixWorld();
+	chopper.rotation.set(0, toRad(-45), 0);
 	
 	//Add the chopperCollada to the scene
 	scene.add(chopperCollada);
@@ -102,16 +99,14 @@ function loadChopperCollada(colladaObject) {
 	
 	camera.lookAt(chopper.position);
 	
-	generateParticles(chopper.children[1].children[0], bboxHelper.box, 0.7);
-	
-	//You may want to use this to see what data Collada can give us:
-	//console.log(colladaObject);
+	generateParticles(chopper.children[1].children[0], bboxHelper.box, 0.5);
 	
 	if (!(--assetsToLoad)) {
 		draw();
 	}
 }
 
+//this was useful for visualizing the grid, and how the rays are cast
 function drawDebugShit(yzIntersects, box, cellSize) {
 	var boxSize = box.size();
 	var grid = new THREE.Object3D();
@@ -178,22 +173,19 @@ function calculateIntersections(mesh, box, cellSize) {
 
 function generateParticles(mesh, box, cellSize) {
 	
-	
-	var boxSize = box.size();
-	
 	var yzIntersects = calculateIntersections(mesh, box, cellSize);
+	mesh.visible = false;
 	
 	
 	var boxSize = box.size();
-	var grid = new THREE.Object3D();
-	grid.position = box.min;
+	var grid = new THREE.Mesh();
 	
 	drawPos = box.min.clone();
 	
-	gridMaterial = new THREE.MeshBasicMaterial( {wireframe: true, color: 0x00ff00} );
-	
+	var gridMaterial = new THREE.MeshBasicMaterial( {wireframe: true, color: 0x00ff00} );
+	var particleRadius = cellSize/2;
 	for (var y = 0; y < boxSize.y / cellSize; y++) {
-		if (yzIntersects[y] && yzIntersects[y].length > 0)
+		if (yzIntersects[y].length > 0)
 		{
 			drawPos.z = box.min.z;
 			for (var z = 0; z < boxSize.z / cellSize; z++)
@@ -208,9 +200,9 @@ function generateParticles(mesh, box, cellSize) {
 						{
 							intersectionCount++;		
 						}
-						if (intersectionCount % 2 == 1) {
-							var cell = new THREE.Mesh(new THREE.SphereGeometry(cellSize), gridMaterial);
-								cell.position.set(drawPos.x, drawPos.y, drawPos.z);
+						if (intersectionCount % 2 == 1 ) {
+							var cell = new THREE.Mesh(new THREE.SphereGeometry(particleRadius), gridMaterial);
+							cell.position.set(drawPos.x , drawPos.y , drawPos.z);
 							grid.add(cell);
 							}
 							drawPos.x += cellSize;
@@ -221,9 +213,15 @@ function generateParticles(mesh, box, cellSize) {
 		}
 		drawPos.y += cellSize;
 	}
+	
+	//TODO: Need to calculate position for Center of Mass, 
+	//add particles as children to Object3D based on that location
+	
 	scene.add(grid);
-
-	//drawDebugShit(yzIntersects, box, cellSize);
+	
+	scene.updateMatrixWorld();
+	
+	//drawDebugShit(yzIntersects, box, cellSize); 
 }
 
 
@@ -249,35 +247,56 @@ function loaded() {
 	draw();
 }
 
-/**
- * Here we parse some controls and specify some speeds based on the input.
- */
+
 function parseControls(dt) {
+	var moveIncrement = dt * 3;
 	if(keyboard.pressed("left")){
-		marine.rotation.set(0, marine.rotation.y + toRad(60 * dt % 360), 0);
+		camera.position.x -= moveIncrement;
 	}
 	if(keyboard.pressed("right")){
-		marine.rotation.set(0, marine.rotation.y - toRad(60 * dt % 360), 0);
+		camera.position.x += moveIncrement;
 	}
 	if(keyboard.pressed("up")){
-		speed += 0.1;
+		camera.position.z -= moveIncrement;
 	}
 	if(keyboard.pressed("down")){
-		speed -= 0.1;
+		camera.position.z += moveIncrement;
 	}
-	speed = Math.min(Math.max(0, speed), 10);
+	if (keyboard.pressed("shift")) {
+		camera.position.y -= moveIncrement;
+	}
+	if (keyboard.pressed("space")) {
+		camera.position.y += moveIncrement;
+	}
+	if(keyboard.pressed("e")){
+		camera.rotation.set(camera.rotation.x, camera.rotation.y + toRad(5), camera.rotation.z);
+	}
+	if(keyboard.pressed("q")){
+		camera.rotation.set(camera.rotation.x, camera.rotation.y - toRad(5), camera.rotation.z);
+	}
+	if(keyboard.pressed("w")){
+		camera.rotation.set(camera.rotation.x + toRad(5*dt), camera.rotation.y,  camera.rotation.z);
+	}
+	if(keyboard.pressed("s")){
+		camera.rotation.set(camera.rotation.x - toRad(5*dt), camera.rotation.y,  camera.rotation.z);
+	}
 }
 
 function draw() {
 	var dt = clock.getDelta();
 	
+	//basic pseudocode: 
+	//octree.update()
+	//handleCollisions(octree, dt); particle interactions are calculated
+	//calculateCOMposition(dt); these should be calculated for each rigid body based on particle interactions (COM - center of mass)
+	//calculateCOMrotation(dt); since particle objects are hierarchically under the rigid body object, 
+	//							their positions relative to the COM should stay the same
+	
 	var time = clock.getElapsedTime(); //Take the time
 	requestAnimationFrame(draw);
 	
-	//parseControls(dt);
+	parseControls(dt);
 	
-	
-	//We move the light
 	var m = time / 6;
 	light.position.copy(lightTrajectory.getPoint(m - parseInt(m)));
 	
@@ -318,8 +337,8 @@ function addHangar() {
 	floor.material = new THREE.MeshLambertMaterial({
 		map: THREE.ImageUtils.loadTexture('http://cglearn.codelight.eu/files/course/7/textures/wallTexture2.jpg', THREE.UVMapping, onTextureLoaded)
 	});
-	hangar.add(floor);
 	
+	hangar.add(floor);
 	scene.add(hangar);
 }
 
