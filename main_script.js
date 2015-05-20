@@ -1,48 +1,49 @@
-//The usual three
-var renderer, scene, camera;
-
-//We have those main objects: chopper from .obj+.mtl, chopper from .dae (collada) and a marine from .json (three.js)
-var chopperCollada;
-var assetsToLoad = 2;
-
-//We use the clock to measure time, an extension for the keyboard
-var clock = new THREE.Clock();
-var keyboard = new THREEx.KeyboardState();
+//here are all the global variables
+var SIM = {
+	renderer: null,
+	scene: null,
+	camera: null,
+	clock: new THREE.Clock(),
+	keyboard: new THREEx.KeyboardState(),
+	statusContainer: null,
+};
 
 function onLoad() { 
+	var renderer = SIM.renderer = new THREE.WebGLRenderer();
+	
 	var canvasContainer = document.getElementById('myCanvasContainer'); 
 	var width = 800; 
 	var height = 500;
 	
-	getStatusContainer().innerHTML = 'Loading...';
+	SIM.statusContainer = document.getElementById('status');
+	SIM.statusContainer.innerHTML = 'Loading...';
 	
-	//Create a perspective camera.
-	//We are going to modify the camera for a third-person view later
-	camera = new THREE.PerspectiveCamera(80, width / height, 1, 1000);
+	var camera = SIM.camera = new THREE.PerspectiveCamera(80, width / height, 1, 1000);
 	camera.up = new THREE.Vector3(0,1,0);
 	
 	camera.position.set(0, 0, 40);
 	camera.updateProjectionMatrix();
 	
-	renderer = new THREE.WebGLRenderer(); 
 	renderer.setSize(width, height);
 	renderer.gammaInput = true; 
 	renderer.gammaOutput = true;
 	canvasContainer.appendChild(renderer.domElement);
 	
-	scene = buildScene();
-	loaded();
+	buildScene(onLoaded);
 }
 
-/**
- * Things are loaded. Initialize draw loop.
- */
-function loaded() {
-	getStatusContainer().innerHTML = 'Running.';
+//Things are loaded. Generate particles and initialize draw loop
+function onLoaded() {
+	var chopper = SIM.scene.chopper;
+	chopper.bboxHelper.update();
+	particles = generateParticles(chopper.children[1].children[0], chopper.bboxHelper.box, 0.3);
+	SIM.statusContainer.innerHTML = 'Running.';
 	draw();
 }
 
 function parseControls(dt) {
+	var camera = SIM.camera;
+	var keyboard = SIM.keyboard;
 	var moveIncrement = dt * 3;
 	if(keyboard.pressed("left")){
 		camera.position.x -= moveIncrement;
@@ -77,6 +78,8 @@ function parseControls(dt) {
 }
 
 function draw() {
+	var scene = SIM.scene;
+	var clock = SIM.clock;
 	var dt = clock.getDelta();
 	
 	//basic pseudocode: 
@@ -92,7 +95,8 @@ function draw() {
 	parseControls(dt);
 	
 	var m = time / 6;
+	
 	scene.light.position.copy(scene.light.trajectory.getPoint(m - parseInt(m)));
 	
-	renderer.render(scene, camera); //We render our scene with our camera
+	SIM.renderer.render(scene, SIM.camera); //We render our scene with our camera
 }

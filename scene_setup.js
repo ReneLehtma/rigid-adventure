@@ -1,6 +1,5 @@
-function buildScene() {
-	var scene = new THREE.Scene();
-	
+function buildScene(onLoaded) {
+	var scene = SIM.scene = new THREE.Scene();
 	var light = new THREE.PointLight(0xaa3333);
 	scene.light = light;
 	scene.light.trajectory = new THREE.ClosedSplineCurve3([
@@ -25,9 +24,8 @@ function buildScene() {
 	colladaLoader.crossOrigin = 'Anonymous';
 	colladaLoader.options.convertUpAxis = true;
 	colladaLoader.options.upAxis = 'Y';
-	colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', loadChopperCollada);
-	
-	return scene;
+	colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
+		function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
 }
 
 /**
@@ -40,11 +38,12 @@ function onTextureLoaded(texture) {
 	texture.needsUpdate = true;
 }
 
-function loadChopperCollada(colladaObject) {
+function loadChopperCollada(colladaObject, onLoaded) {
 
 	chopperCollada = colladaObject.scene;
 	chopperCollada.name = "ChopperCollada";	
 	var chopper = chopperCollada.getObjectByName("Chopper");
+	var scene = SIM.scene;
 	
 	//pretty stupid
 	chopper.children[0].material.side = THREE.DoubleSide;
@@ -54,14 +53,15 @@ function loadChopperCollada(colladaObject) {
 	chopper.scale.set(0.8, 0.8, 0.8);
 	chopper.rotation.set(0, toRad(-45), 0);
 	
-	scene.add(chopperCollada);
-	var bboxHelper = new THREE.BoundingBoxHelper(chopper, 0x00ff00);
-	bboxHelper.update();
-	scene.add(bboxHelper);
 	
-	camera.lookAt(chopper.position);
+	SIM.scene.add(chopperCollada);
+	chopper.bboxHelper = new THREE.BoundingBoxHelper(chopper, 0x00ff00);
 	
-	generateParticles(chopper.children[1].children[0], bboxHelper.box, 0.3);
+	scene.add(chopper.bboxHelper);
+	scene.chopper = chopper;
+	
+	SIM.camera.lookAt(chopper.position);
+	onLoaded();
 }
 
 /**

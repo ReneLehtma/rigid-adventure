@@ -113,13 +113,12 @@ function generateParticles(mesh, box, cellSize) {
 	var material = new THREE.PointCloudMaterial( { size: cellSize} );
 
 	particleSystem = new THREE.PointCloud( particles, material );
-	scene.add( particleSystem );
+	SIM.scene.add( particleSystem );
 	
 	//TODO: Need to calculate position for Center of Mass, 
 	//add particles as children to Object3D based on that location
-	scene.add(particleSystem);
-	scene.updateMatrixWorld();
-	
+	SIM.scene.add(particleSystem);
+	SIM.scene.updateMatrixWorld();
 	
 	return particles;
 }
