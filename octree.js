@@ -5,91 +5,100 @@
 	http://www.brandonpelfrey.com/blog/coding-a-simple-octree/
 	http://stackoverflow.com/questions/4578967/cube-sphere-intersection-test */
 
-//Constructor takes a center point and a si
-var OctreeNode = function(center, halfSize) {
+//An octree for storing THREE.Sphere
+var OctreeNode = function(center, halfSize, depth) {
+	this.depth = depth;
 	//this is the leftmost, bottommost, furthest point in the octree space
 	this.min = new THREE.Vector3(
-		center.x-halfSize, center.y-halfSize, center.z-halfSize);
+		center.x - halfSize, center.y - halfSize, center.z - halfSize);
 	//this is the opposite point (rightmost, topmost, closest)
 	this.max = new THREE.Vector3(
-		center.x+halfSize, center.y+halfSize, center.z+halfSize);
+		center.x + halfSize, center.y + halfSize, center.z + halfSize);
 	this.halfSize = halfSize;
 	this.center = center;
 	this.children = [];
 	this.isLeaf = true;
-	this.value = null;
+	this.particles = [];
+	return this;
 }
-
+OctreeNode.MAX_DEPTH = 1;
 OctreeNode.prototype = {
-
+	getParticleCount: function() {
+		if (this.isLeaf) {
+			return this.particles.length;
+		}
+		var sum = 0;
+		this.children.forEach(function(child) {sum += child.getParticleCount()});
+		return sum;
+	},
 	//Add a value to the tree
-	//value object should have attributes position (THREE.Vector3) and radius (float)
+	//value object should have attributes center (THREE.Vector3) and radius (float)
 	//returns true if object added successfully, false otherwise
-	add: function(value) {
+	add: function(particle) {
 		//first check if this value is contained by the bounding box
-		var index = findIndex(value);
+		//console.log(particle);
+		var index = this.getIndex(particle);
 		if (index == -1) { return false; };
 		
 		//if this is a leaf node, we need to check if it 
 		//already contains a value
 		if (this.isLeaf) {
-			//if there already is a value, then we need to subdivide
-			if (this.value) {
+			//if the depth is less than the limit and there already is a value, then we need to subdivide
+			if (this.depth <= OctreeNode.MAX_DEPTH && this.particles.length >= 1) {
 				this.subdivide();
-				return this.add(value);
+				return this.add(particle);
 			}
+				
 			//otherwise we just assign the new value to this node
 			else {
-				this.value = value;
+				this.particles.push(particle);
 				return true;
 			}
 		}
 		else {
 			//add value to the correct child node
-			this.children[index].add(value);
-			return true;
+			return this.children[index].add(particle);
 		}
 	},
 	
 	//returns true if point (THREE.Vector3) is part of octree space
 	containsPoint: function(point) {
-		return !(value.position.x < center.x - halfSize ||
-			value.position.y < center.y - halfSize ||
-			value.position.z < center.z - halfSize ||
-			value.position.x < center.x + halfSize ||
-			value.position.y < center.z + halfSize ||
-			value.position.z < center.z + halfSize);
+		return !(
+			point.x < this.min.x || point.y < this.min.y || point.z < this.min.z ||
+			point.x > this.max.x || point.y > this.max.y || point.z > this.max.z);
 	},
 	
-	getIndex: function(value) {
-		if (containsPoint(value.position)) { return -1; }
+	getIndex: function(particle) {
+		if (!this.containsPoint(particle.centerWorld)) { 
+		return -1; 
+		}
 		
-		if (value.position.x < this.center.x)
+		if (particle.centerWorld.x < this.center.x)
 		{
-			if (value.position.y < this.center.y)
+			if (particle.centerWorld.y < this.center.y)
 			{
-				if (value.position.z < this.center.z) {
+				if (particle.centerWorld.z < this.center.z) {
 					return 0;
 				}
 				else return 1;
 			}
 			else {
-				if (value.position.x < this.center.z) {
+				if (particle.centerWorld.z < this.center.z) {
 					return 2;
 				}
 				else return 3;
 			}
 		}
 		else {
-			if (value.position.y < this.center.y)
+			if (particle.centerWorld.y < this.center.y)
 			{
-				if (value.position.z < this.center.z) {
+				if (particle.centerWorld.z < this.center.z) {
 					return 4;
 				}
 				else return 5;
 			}
 			else {
-				if (value.position.x < this.center.z) {
+				if (particle.centerWorld.z < this.center.z) {
 					return 6;
 				}
 				else return 7;
@@ -104,7 +113,7 @@ OctreeNode.prototype = {
 	//the reference from above used bitwise operations, which is a much more elegant
 	//solution, but it's maybe a bit (no pun intended) more difficult to understand
 	//than this dumb approach with a simple switch statement
-	//I really like the bitwise thing though, so I'll probably change this later
+	//also, it turns out JavaScript doesn't really benefit from bitwise operations
 	subdivide: function() {
 		this.isLeaf = false;
 		var size = this.halfSize / 2;
@@ -119,88 +128,81 @@ OctreeNode.prototype = {
 					center = new THREE.Vector3(
 						this.center.x - size,
 						this.center.y - size,
-						this.center.z - size,
-						);
+						this.center.z - size);
 					break;
 				case 1:
 					center = new THREE.Vector3(
 						this.center.x - size,
 						this.center.y - size,
-						this.center.z + size,
-						);
+						this.center.z + size);
 					break;
 				case 2:
 					center = new THREE.Vector3(
 						this.center.x - size,
 						this.center.y + size,
-						this.center.z - size,
-						);
+						this.center.z - size);
 					break;
 				case 3:
 					center = new THREE.Vector3(
 						this.center.x - size,
 						this.center.y + size,
-						this.center.z + size,
-						);
+						this.center.z + size);
 					break;
 				case 4:
 					center = new THREE.Vector3(
 						this.center.x + size,
 						this.center.y - size,
-						this.center.z - size,
-						);
+						this.center.z - size);
 					break;
 				case 5:
 					center = new THREE.Vector3(
 						this.center.x + size,
 						this.center.y - size,
-						this.center.z + size,
-						);
+						this.center.z + size);
 					break;
 				case 6:
 					center = new THREE.Vector3(
 						this.center.x + size,
 						this.center.y + size,
-						this.center.z - size,
-						);
+						this.center.z - size);
 					break;
 				case 7:
 					center = new THREE.Vector3(
 						this.center.x + size,
 						this.center.y + size,
-						this.center.z + size,
-						);
+						this.center.z + size);
 					break;
 			}
-			children.push(new OctreeNode(center, size));
+			this.children.push(new OctreeNode(center, size, this.depth + 1));
 		}
-		this.add(this.value);
-		this.value = null;
+		for (var i = 0; i < this.particles.length; i++) {
+			this.add(this.particles[i]);
+		}
+		
+		this.particles = [];
 	},
 	
-	squared: function(x) {
-		return x * x;
-	}
-	
-	doesSphereIntersect: function(sphereCenter, sphereRadius) {
-		var dist_squared = squared(sphereRadius);
-		if (sphereCenter.x < this.min.x) {
-			dist_squared -= squared(sphereCenter.x - this.min.x);
+	doesParticleIntersect: function(particle) {
+		var p_center = particle.centerWorld;
+		
+		var dist_squared = squared(particle.radius);
+		if (p_center.x < this.min.x) {
+			dist_squared -= squared(p_center.x - this.min.x);
 		}
-		else if (sphereCenter.x > this.max.x) {
-			dist_squared -= squared(sphereCenter.x - this.max.x);
+		else if (p_center.x > this.max.x) {
+			dist_squared -= squared(p_center.x - this.max.x);
 		}
-		if (sphereCenter.y < this.min.y) {
-			dist_squared -= squared(sphereCenter.y - this.min.y);
+		if (p_center.y < this.min.y) {
+			dist_squared -= squared(p_center.y - this.min.y);
 		}
-		else if (sphereCenter.y > this.max.y) {
-			dist_squared -= squared(sphereCenter - this.max.y);
+		else if (p_center.y > this.max.y) {
+			dist_squared -= squared(p_center - this.max.y);
 		}
-		if (sphereCenter.z < this.min.z) {
-			dist_squared -= squared(sphereCenter.z - this.min.z);
+		if (p_center.z < this.min.z) {
+			dist_squared -= squared(p_center.z - this.min.z);
 		}
-		else if (sphereIntersect > this.max.z) {
-			dist_squared -= squared(sphereCenter.z - this.max.z);
+		else if (p_center.z > this.max.z) {
+			dist_squared -= squared(p_center.z - this.max.z);
 		}
 		return dist_squared > 0;
 	},
@@ -208,17 +210,23 @@ OctreeNode.prototype = {
 	//the query has to return values from nodes
 	//that either contain the given particle or
 	//that the given particle intersects with
-	queryCollisions: function(sphere) {
-		result = []
+	query: function(particle) {
+		result = [];
 		//distanceToSquared might be less expensive 
-		if (isLeaf && value && 
-			sphere.center.distanceTo(value.center) < sphere.radius + value.radius) {
-			result.push(value);
+		if (this.isLeaf && this.particles.length >= 1) {
+			this.particles.forEach(
+				function (p) {
+					//can actually use THREE.js Sphere with intersectsSphere
+					if (p.bodyID !== particle.bodyID &&
+						p.centerWorld.distanceTo(particle.centerWorld) <= p.radius + particle.radius) {
+						result.push(p);
+					}
+				});
 		}
-		else if (doesSphereIntersect(sphere)) {
-			this.children.forEach(function(child) {
-				result = result.concat(child.queryCollisions(sphere));
-			});
+		else if (!this.isLeaf && this.doesParticleIntersect(particle)) {
+			for (var i = 0; i < 8; i++) {
+				result = result.concat(this.children[i].query(particle));
+			}
 		}
 		return result;
 	},

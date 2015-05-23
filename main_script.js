@@ -6,6 +6,9 @@ var SIM = {
 	clock: new THREE.Clock(),
 	keyboard: new THREEx.KeyboardState(),
 	statusContainer: null,
+	octree: null,
+	particles: null,
+	bodies: []
 };
 
 function onLoad() { 
@@ -34,9 +37,12 @@ function onLoad() {
 
 //Things are loaded. Generate particles and initialize draw loop
 function onLoaded() {
-	var chopper = SIM.scene.chopper;
-	chopper.bboxHelper.update();
-	particles = generateParticles(chopper.children[1].children[0], chopper.bboxHelper.box, 0.3);
+	//var chopper = SIM.scene.chopper;
+	//SIM.particles = generateParticles(chopper.children[1].children[0], chopper.bboxHelper.box, 0.5);
+	
+	generateParticles(SIM.scene.cube1, 0.7);
+	generateParticles(SIM.scene.cube2, 0.7);
+	
 	SIM.statusContainer.innerHTML = 'Running.';
 	draw();
 }
@@ -51,6 +57,16 @@ function parseControls(dt) {
 	if(keyboard.pressed("right")){
 		camera.position.x += moveIncrement;
 	}
+	
+	if(keyboard.pressed("a")){
+		SIM.scene.cube1.position.x -= moveIncrement;
+		SIM.bodies[0].forEach(function(particle){particle.centerWorld.x -= moveIncrement})
+	}
+	if(keyboard.pressed("d")){
+		SIM.scene.cube1.position.x += moveIncrement;
+		SIM.bodies[0].forEach(function(particle){particle.centerWorld.x += moveIncrement})
+	}
+	
 	if(keyboard.pressed("up")){
 		camera.position.z -= moveIncrement;
 	}
@@ -77,17 +93,47 @@ function parseControls(dt) {
 	}
 }
 
+function updateOctree() {
+	//create new octree
+	SIM.octree = new OctreeNode(new THREE.Vector3(0,0,0), 100, 0);
+	//add all the particles to the tree
+	SIM.bodies.forEach(
+		function(body) {
+			body.forEach(
+				function (particle) {
+					SIM.octree.add(particle);
+				}
+			);
+		}
+	);
+}
+
+//for each body's each particle get its collisions and calculate resulting forces/torques, 
+//based on those forces, for each body calculate the resulting sum of the forces/torques
+function handleCollisions() {
+	SIM.bodies.forEach(
+		function(body) {
+			body.forEach(
+				function (particle) {
+					var collisions = SIM.octree.query(particle);
+					if (collisions.length > 0)
+						console.log(collisions);
+				}
+			);
+		}
+	)
+}
+ 
 function draw() {
 	var scene = SIM.scene;
 	var clock = SIM.clock;
 	var dt = clock.getDelta();
 	
-	//basic pseudocode: 
-	//octree.update()
-	//handleCollisions(octree, dt); particle interactions are calculated
-	//calculateCOMposition(dt); these should be calculated for each rigid body based on particle interactions (COM - center of mass)
-	//calculateCOMrotation(dt); since particle objects are hierarchically under the rigid body object, 
-	//							their positions relative to the COM should stay the same
+	updateOctree();
+	handleCollisions();
+	
+	//updateBodies();
+	//calculateParticleVelocities();
 	
 	var time = clock.getElapsedTime(); //Take the time
 	requestAnimationFrame(draw);

@@ -49,7 +49,7 @@ function calculateIntersections(mesh, box, cellSize) {
 		var any = false;
 		for (; origin.z < box.max.z; origin.z += cellSize) {
 			raycaster.set(origin, direction);
-			var inters = raycaster.intersectObject(mesh, false);
+			var inters = raycaster.intersectObject(mesh);
 			if (inters.length > 0) {
 				any = true;
 				zIntersections.push(inters);
@@ -63,20 +63,27 @@ function calculateIntersections(mesh, box, cellSize) {
 	return intersections;
 }
 
-function generateParticles(mesh, box, cellSize) {
+function generateParticles(mesh, cellSize) {
+	var geometry = mesh.geometry;
+	geometry.computeBoundingBox();
+	var box = geometry.boundingBox;
 	
 	var yzIntersects = calculateIntersections(mesh, box, cellSize);
-	mesh.visible = false;
-	
+	mesh.visible = true;
 	
 	var boxSize = box.size();
-	var particles = new THREE.BufferGeometry();
-	particles.radius = cellSize / 2;
+	var particleGeometry = new THREE.BufferGeometry();
+	var particles = [];
 	
-	drawPos = box.min.clone();
 	var positions = [];
 	var colors = [];
 	var color = new THREE.Color();
+	var particleRadius = cellSize / 2;
+	
+	//the center of mass
+	var com = new THREE.Vector3();
+	
+	drawPos = box.min.clone();
 	
 	for (var y = 0; y < boxSize.y / cellSize; y++) {
 		if (yzIntersects[y].length > 0)
@@ -90,35 +97,49 @@ function generateParticles(mesh, box, cellSize) {
 					var intersectionCount = 0;
 					for (x = 0; x < boxSize.x / cellSize; x++) {
 						if (intersectionCount < yzIntersects[y][z].length && 
-							x * cellSize >= yzIntersects[y][z][intersectionCount].distance)
+							x * cellSize <= yzIntersects[y][z][intersectionCount].distance)
 						{
 							intersectionCount++;		
 						}
 						if (intersectionCount % 2 == 1 ) {
-								positions.push(drawPos.x + particles.radius);
-								positions.push(drawPos.y + particles.radius);
-								positions.push(drawPos.z + particles.radius);	
+								var posWithOffset = drawPos.clone()
+								posWithOffset.addScalar(particleRadius);
+								
+								positions.push(posWithOffset.x);
+								positions.push(posWithOffset.y);
+								positions.push(posWithOffset.z);	
+								
+								var centerw = posWithOffset.clone();
+								centerw.add(mesh.position);
+								
+								var particle = {
+									bodyID: SIM.bodies.length, 
+									center: posWithOffset, 
+									centerWorld: centerw, 
+									radius: particleRadius};
+								particle.bodyID = SIM.bodies.length;
+								particles.push(particle);
+								
+								com.add(drawPos);
 							}
 							drawPos.x += cellSize;
-						}
+					}
 				}
 				drawPos.z += cellSize;
 			}
 		}
 		drawPos.y += cellSize;
 	}
-	particles.addAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-	particles.computeBoundingSphere();
+	com.divideScalar(particles.length);
+	particleGeometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+	particleGeometry.computeBoundingSphere();
 	
 	var material = new THREE.PointCloudMaterial( { size: cellSize} );
 
-	particleSystem = new THREE.PointCloud( particles, material );
-	SIM.scene.add( particleSystem );
+	var particleSystem = new THREE.PointCloud(particleGeometry, material);
+	mesh.add(particleSystem);
 	
 	//TODO: Need to calculate position for Center of Mass, 
-	//add particles as children to Object3D based on that location
-	SIM.scene.add(particleSystem);
-	SIM.scene.updateMatrixWorld();
-	
-	return particles;
+	//add particleGeometry as children to Object3D based on that location
+	SIM.bodies.push(particles);
 }

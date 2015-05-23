@@ -20,12 +20,31 @@ function buildScene(onLoaded) {
 	
 	scene.add(buildHangar());
 	
-	var colladaLoader = new THREE.ColladaLoader();
-	colladaLoader.crossOrigin = 'Anonymous';
-	colladaLoader.options.convertUpAxis = true;
-	colladaLoader.options.upAxis = 'Y';
-	colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
-		function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
+	var material = new THREE.MeshPhongMaterial({ color: 0xdddddd, specular: 0x009900, shininess: 30, 
+			shading: THREE.FlatShading, side: THREE.DoubleSide });
+	//let's first try with a few boxes;
+	var cube1 = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), material); 
+	var cube2 = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), material); 
+	cube1.position.z += 30;
+	cube2.position.z += 30;
+	
+	cube1.position.x -= 3.5;
+	cube1.position.y += 1;
+	
+	scene.add(cube1);
+	scene.add(cube2);
+	
+	scene.cube1 = cube1;
+	scene.cube2 = cube2;
+	
+	onLoaded();
+	
+	//var colladaLoader = new THREE.ColladaLoader();
+	//colladaLoader.crossOrigin = 'Anonymous';
+	//colladaLoader.options.convertUpAxis = true;
+	//colladaLoader.options.upAxis = 'Y';
+	//colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
+	//	function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
 }
 
 /**
@@ -45,7 +64,6 @@ function loadChopperCollada(colladaObject, onLoaded) {
 	var chopper = chopperCollada.getObjectByName("Chopper");
 	var scene = SIM.scene;
 	
-	//pretty stupid
 	chopper.children[0].material.side = THREE.DoubleSide;
 	chopper.children[1].children[0].material.side = THREE.DoubleSide;
 	
@@ -56,7 +74,7 @@ function loadChopperCollada(colladaObject, onLoaded) {
 	
 	SIM.scene.add(chopperCollada);
 	chopper.bboxHelper = new THREE.BoundingBoxHelper(chopper, 0x00ff00);
-	
+	chopper.bboxHelper.update();
 	scene.add(chopper.bboxHelper);
 	scene.chopper = chopper;
 	
