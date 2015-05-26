@@ -22,27 +22,24 @@ function buildScene(onLoaded) {
 	
 	var material = new THREE.MeshPhongMaterial({ color: 0xdddddd, specular: 0x009900, shininess: 30, 
 			shading: THREE.FlatShading, side: THREE.DoubleSide });
+			
+	SIM.scene.cubes = [];
 	//let's first try with a few boxes;
-	var cube1 = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), material); 
-	var cube2 = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), material); 
+	for (var i = 0; i < 1000; i++) {
+		SIM.scene.cubes.push(new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 1 ), material)); 
+		SIM.scene.cubes[i].position.set(Math.random()*2, -7, Math.random()*5 + 15);
+	}
 	
-	cube1.position.set(0, -7, 33);
-	cube2.position.set(0, -7, 37);
+	SIM.scene.cubes.forEach(function(cube) {scene.add(cube);});
 	
-	scene.add(cube1);
-	scene.add(cube2);
+	onLoaded();
 	
-	scene.cube1 = cube1;
-	scene.cube2 = cube2;
-	
-	
-	
-	var colladaLoader = new THREE.ColladaLoader();
-	colladaLoader.crossOrigin = 'Anonymous';
-	colladaLoader.options.convertUpAxis = true;
-	colladaLoader.options.upAxis = 'Y';
-	colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
-		function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
+	//var colladaLoader = new THREE.ColladaLoader();
+	//colladaLoader.crossOrigin = 'Anonymous';
+	//colladaLoader.options.convertUpAxis = true;
+	//colladaLoader.options.upAxis = 'Y';
+	//colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
+	//	function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
 }
 
 /**
@@ -57,16 +54,16 @@ function onTextureLoaded(texture) {
 
 function loadChopperCollada(colladaObject, onLoaded) {
 
-	chopperCollada = colladaObject.scene;
+	var chopperCollada = colladaObject.scene;
 	chopperCollada.name = "ChopperCollada";	
 	var chopper = chopperCollada.getObjectByName("Chopper").children[1].children[0];
 	var scene = SIM.scene;
 	
 	chopper.material.side = THREE.DoubleSide;
 	
-	chopper.position.set(0, -10, 20);
+	chopper.position.set(-4, -10, 15);
 	chopper.scale.set(0.8, 0.8, 0.8);
-	chopper.rotation.set(0, toRad(-45), 0);
+	//chopper.rotation.set(0, toRad(45), 0);
 	
 	SIM.scene.add(chopper);
 	scene.chopper = chopper;

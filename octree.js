@@ -21,7 +21,7 @@ var OctreeNode = function(center, halfSize, depth) {
 	this.particles = [];
 	return this;
 }
-OctreeNode.MAX_DEPTH = 10;
+OctreeNode.MAX_DEPTH = 11;
 OctreeNode.prototype = {
 	getParticleCount: function() {
 		if (this.isLeaf) {

@@ -40,19 +40,12 @@ function onLoad() {
 
 //Things are loaded. Generate particles and initialize draw loop
 function onLoaded() {
-	generateParticles(SIM.scene.cube1, 0.6);
-	generateParticles(SIM.scene.cube2, 0.6);
-	var chopper = SIM.scene.chopper;
-	generateParticles(chopper, 0.4);
-	
-	SIM.bodies[0].velocity = new THREE.Vector3(0, 0, 0.02);
-	SIM.bodies[1].velocity = new THREE.Vector3(0, 0, -0.08);
-	SIM.bodies[2].velocity = new THREE.Vector3(0, 0, 0);
-	
-	SIM.bodies[0].angularVelocity = new THREE.Vector3(0, 0, 0);
-	SIM.bodies[1].angularVelocity = new THREE.Vector3(0, 0, 0);
-	SIM.bodies[2].angularVelocity = new THREE.Vector3(0, 0, 0);
-	
+	for (var i = 0; i < SIM.scene.cubes.length; i++) {
+		generateParticles(SIM.scene.cubes[i], 0.5);
+		SIM.bodies[i].velocity = new THREE.Vector3(0, 0, 0);
+		SIM.bodies[i].angularVelocity = new THREE.Vector3(0, 0, 0);
+	}
+	SIM.bodies[2].velocity = new THREE.Vector3(0, 0, -0.1);
 	SIM.statusContainer.innerHTML = 'Running.';
 	draw();
 }
@@ -115,6 +108,8 @@ function updateOctree() {
 	);
 }
 
+//these calculations are taken from gpugems 3-29
+
 //takes as arguments spring constant k, particle diameter, 
 //and relative position of one particle with respect to the other
 //based on those calculates and returns the repulsive force
@@ -160,7 +155,9 @@ function handleCollisions(dt) {
 			body.forEach(
 				function (particle) {
 					
+					
 					var collisions = SIM.octree.query(particle);
+					
 				
 					collisions.forEach(function (otherParticle) {
 						var relativeVelocity = otherParticle.velocity.clone();
@@ -169,12 +166,9 @@ function handleCollisions(dt) {
 						var relPosition = otherParticle.centerWorld.clone();
 						relPosition.sub(particle.centerWorld);
 						
-						var repulsiveForce = calculateRepulsiveForce(1.3, particle.radius + otherParticle.radius, relPosition);
-						//console.log(particle);
-						//console.log(repulsiveForce);
-						var dampingForce = calculateDampingForce(0.8, relativeVelocity);
-						//console.log(dampingForce);
-						var shearForce = calculateShearForce(0.3, relPosition, relativeVelocity);
+						var repulsiveForce = calculateRepulsiveForce(0.3, particle.radius*2, relPosition);
+						var dampingForce = calculateDampingForce(0.3, relativeVelocity);
+						var shearForce = calculateShearForce(0.5, relPosition, relativeVelocity);
 						
 						
 						var forceSum = new THREE.Vector3();
@@ -183,7 +177,8 @@ function handleCollisions(dt) {
 						forceSum.add(shearForce);
 						
 						body.force.add(forceSum);
-						torque = particle.center.clone();
+						var torque = body.com.position.clone();
+						torque.sub(particle.center);
 						torque.cross(forceSum);
 						
 						body.torque.add(torque);
@@ -194,19 +189,7 @@ function handleCollisions(dt) {
 			changeInVelocity.multiplyScalar(dt / body.mass);
 			body.velocity.add(changeInVelocity);
 			
-			var cube;
-			
-			switch (SIM.bodies.indexOf(body)) {
-				case 0:
-					cube = SIM.scene.cube1;
-					break;
-				case 1:
-					cube = SIM.scene.cube2;
-					break;
-				case 2:
-					cube = SIM.scene.chopper;
-					break;
-			}
+			var cube = SIM.scene.cubes[SIM.bodies.indexOf(body)];
 			
 			var angularVelocity = body.torque.clone();
 			angularVelocity.divideScalar(body.momentOfInertia / dt);
@@ -215,11 +198,12 @@ function handleCollisions(dt) {
 			
 			var rotationAxis = angularVelocity.clone();
 			rotationAxis.normalize();
-			
 			var rotationAngle = angularVelocity.length();
-			cube.rotateOnAxis(rotationAxis, rotationAngle);
 			
+			var changeQuaternion = new THREE.Quaternion();
+			changeQuaternion.setFromAxisAngle(rotationAxis, rotationAngle);
 			
+			cube.quaternion.multiplyQuaternions(changeQuaternion, cube.quaternion);
 		}
 	);
 }
@@ -229,7 +213,9 @@ function calculateParticleVelocities() {
 		body.forEach(function(particle) {
 			//particle.velocity = body.velocity.clone();
 			particle.velocity = body.angularVelocity.clone();
-			particle.velocity.cross(particle.center);
+			var comRel = body.com.position.clone();
+			comRel.sub(particle.center);
+			particle.velocity.cross(comRel);
 			particle.velocity.add(body.velocity);
 		});
 	});
@@ -242,27 +228,16 @@ function draw() {
 	
 	calculateParticleVelocities();
 	updateOctree();
-	handleCollisions(dt);
+	handleCollisions(dt/1000);
 	
 	//console.log(SIM.scene.cube1.position);
-	
-	SIM.scene.cube1.position.add(SIM.bodies[0].velocity);
-	SIM.bodies[0].forEach(function(particle){
-		particle.centerWorld = particle.center.clone();
-		particle.centerWorld.add(SIM.scene.cube1.position);
-	});
-	
-	SIM.scene.cube2.position.add(SIM.bodies[1].velocity);
-	SIM.bodies[1].forEach(function(particle){
-		particle.centerWorld = particle.center.clone();
-		particle.centerWorld.add(SIM.scene.cube2.position);
-	});
-	
-	SIM.scene.chopper.position.add(SIM.bodies[2].velocity);
-	SIM.bodies[2].forEach(function(particle){
-		particle.centerWorld = particle.center.clone();
-		particle.centerWorld.add(SIM.scene.chopper.position);
-	});
+	for (var i = 0; i < SIM.scene.cubes.length; i++) {
+		SIM.scene.cubes[i].position.add(SIM.bodies[i].velocity);
+		SIM.bodies[i].forEach(function(particle){
+			particle.centerWorld = particle.center.clone();
+			particle.centerWorld.add(SIM.scene.cubes[i].position);
+		});
+	}
 	
 	//console.log(SIM.scene.cube1.position);
 	

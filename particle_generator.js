@@ -81,7 +81,7 @@ function generateParticles(mesh, cellSize) {
 	var particleRadius = cellSize / 2;
 	
 	//the center of mass
-	var com = new THREE.Vector3();
+	var com = new THREE.Mesh(new THREE.BoxGeometry(1,1,1));
 	
 	drawPos = box.min.clone();
 	
@@ -120,7 +120,7 @@ function generateParticles(mesh, cellSize) {
 								particle.bodyID = SIM.bodies.length;
 								particles.push(particle);
 								
-								com.add(drawPos);
+								com.position.add(drawPos);
 							}
 							drawPos.x += cellSize;
 					}
@@ -130,7 +130,7 @@ function generateParticles(mesh, cellSize) {
 		}
 		drawPos.y += cellSize;
 	}
-	com.divideScalar(particles.length);
+	com.position.divideScalar(particles.length);
 	particleGeometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
 	particleGeometry.computeBoundingSphere();
 	
@@ -138,12 +138,14 @@ function generateParticles(mesh, cellSize) {
 
 	var particleSystem = new THREE.PointCloud(particleGeometry, material);
 	mesh.add(particleSystem);
+	mesh.add(com);
 	
 	//TODO: Need to calculate position for Center of Mass, 
 	//add particleGeometry as children to Object3D based on that location
 	particles.mass = SIM.particleDensity * particles.length * (4/3) * Math.pow(particleRadius, 3.0);
 	//moment of inertia for a cube
 	particles.momentOfInertia = particles.mass * squared(boxSize.x) / 6;
+	particles.com = com;
 	
 	SIM.bodies.push(particles);
 }
