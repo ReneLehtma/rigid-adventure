@@ -141,5 +141,9 @@ function generateParticles(mesh, cellSize) {
 	
 	//TODO: Need to calculate position for Center of Mass, 
 	//add particleGeometry as children to Object3D based on that location
+	particles.mass = SIM.particleDensity * particles.length * (4/3) * Math.pow(particleRadius, 3.0);
+	//moment of inertia for a cube
+	particles.momentOfInertia = particles.mass * squared(boxSize.x) / 6;
+	
 	SIM.bodies.push(particles);
 }

@@ -21,7 +21,7 @@ var OctreeNode = function(center, halfSize, depth) {
 	this.particles = [];
 	return this;
 }
-OctreeNode.MAX_DEPTH = 1;
+OctreeNode.MAX_DEPTH = 10;
 OctreeNode.prototype = {
 	getParticleCount: function() {
 		if (this.isLeaf) {
@@ -185,7 +185,7 @@ OctreeNode.prototype = {
 	doesParticleIntersect: function(particle) {
 		var p_center = particle.centerWorld;
 		
-		var dist_squared = squared(particle.radius);
+		var dist_squared = squared(particle.radius * 2.0); 
 		if (p_center.x < this.min.x) {
 			dist_squared -= squared(p_center.x - this.min.x);
 		}
@@ -211,8 +211,7 @@ OctreeNode.prototype = {
 	//that either contain the given particle or
 	//that the given particle intersects with
 	query: function(particle) {
-		result = [];
-		//distanceToSquared might be less expensive 
+		var result = [];
 		if (this.isLeaf && this.particles.length >= 1) {
 			this.particles.forEach(
 				function (p) {
@@ -224,9 +223,13 @@ OctreeNode.prototype = {
 				});
 		}
 		else if (!this.isLeaf && this.doesParticleIntersect(particle)) {
-			for (var i = 0; i < 8; i++) {
-				result = result.concat(this.children[i].query(particle));
-			}
+			this.children.forEach(function(child) {
+				result.push.apply(result, child.query(particle));
+				}
+			);
+			//for (var i = 0; i < 8; i++) {
+			//	result = result.concat(this.children[i].query(particle));
+			//}
 		}
 		return result;
 	},

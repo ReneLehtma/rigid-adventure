@@ -25,11 +25,9 @@ function buildScene(onLoaded) {
 	//let's first try with a few boxes;
 	var cube1 = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), material); 
 	var cube2 = new THREE.Mesh( new THREE.BoxGeometry( 2, 2, 2 ), material); 
-	cube1.position.z += 30;
-	cube2.position.z += 30;
 	
-	cube1.position.x -= 3.5;
-	cube1.position.y += 1;
+	cube1.position.set(0, -7, 33);
+	cube2.position.set(0, -7, 37);
 	
 	scene.add(cube1);
 	scene.add(cube2);
@@ -37,14 +35,14 @@ function buildScene(onLoaded) {
 	scene.cube1 = cube1;
 	scene.cube2 = cube2;
 	
-	onLoaded();
 	
-	//var colladaLoader = new THREE.ColladaLoader();
-	//colladaLoader.crossOrigin = 'Anonymous';
-	//colladaLoader.options.convertUpAxis = true;
-	//colladaLoader.options.upAxis = 'Y';
-	//colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
-	//	function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
+	
+	var colladaLoader = new THREE.ColladaLoader();
+	colladaLoader.crossOrigin = 'Anonymous';
+	colladaLoader.options.convertUpAxis = true;
+	colladaLoader.options.upAxis = 'Y';
+	colladaLoader.load('http://cglearn.codelight.eu/files/course/9/models/chopper/chopper.dae', 
+		function(colladaObject) { loadChopperCollada(colladaObject, onLoaded); });
 }
 
 /**
@@ -61,21 +59,16 @@ function loadChopperCollada(colladaObject, onLoaded) {
 
 	chopperCollada = colladaObject.scene;
 	chopperCollada.name = "ChopperCollada";	
-	var chopper = chopperCollada.getObjectByName("Chopper");
+	var chopper = chopperCollada.getObjectByName("Chopper").children[1].children[0];
 	var scene = SIM.scene;
 	
-	chopper.children[0].material.side = THREE.DoubleSide;
-	chopper.children[1].children[0].material.side = THREE.DoubleSide;
+	chopper.material.side = THREE.DoubleSide;
 	
 	chopper.position.set(0, -10, 20);
 	chopper.scale.set(0.8, 0.8, 0.8);
 	chopper.rotation.set(0, toRad(-45), 0);
 	
-	
-	SIM.scene.add(chopperCollada);
-	chopper.bboxHelper = new THREE.BoundingBoxHelper(chopper, 0x00ff00);
-	chopper.bboxHelper.update();
-	scene.add(chopper.bboxHelper);
+	SIM.scene.add(chopper);
 	scene.chopper = chopper;
 	
 	SIM.camera.lookAt(chopper.position);
